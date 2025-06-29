@@ -2,12 +2,13 @@ import Plan from '../models/plans.models.js';
 import User from '../models/user.models.js';
 
 export const createPlan = async (req, res) => {
+    console.log('inside the plan setter function')
     try {
         const userId = req?.user;
         const user = await User.findById(userId);
 
         if (!user) {
-            return res.status(402).json({ message: 'User not found.' });
+            return res.status(401).json({ message: 'Login session expired.Please Login again.' });
         }
         const {
             planTitle,
