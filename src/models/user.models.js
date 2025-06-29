@@ -33,7 +33,11 @@ const UserSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Notification'
         }
-    ]
+    ],
+    token:{
+        type: Number,
+        default: ''
+    }
 }, {
     timestamps: true
 });

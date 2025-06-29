@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { decode } from 'jsonwebtoken';
 import User from '../models/user.models.js';
 import Notification from '../models/notification.models.js';
 import sendMail from '../utils/sendMail.js';
@@ -49,14 +49,14 @@ export const verifyEmail = async (req, res) => {
     try {
         console.log("inside verify email")
         const auth = req.cookies.auth;
-        console.log('atuth',auth)
+        console.log('atuth', auth)
 
         if (!auth) {
             return res.status(500).json({ message: 'Internal server error' });
         }
 
         const { email, username, password, profilepic, code } = req.body;
-        console.log('req',req?.body)
+        console.log('req', req?.body)
 
         if (!code) {
             return res.status(401).json({ message: 'Invalid verification code' });
@@ -283,5 +283,142 @@ export const pushNotification = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error pushing notification', error: error.message });
         console.log('error while pushing notification in the server', error)
+    }
+}
+
+
+export const sendVerificationCode = async (req, res) => {
+    try {
+
+        const { email } = req.body
+
+        if (!email) {
+            return res.status(402).json({ message: 'Please provide your email that has been used to register' })
+        }
+        const user = await User.findOne({ email })
+
+        if (!user) {
+            return res.status(401).json({ message: 'user not registered with this email yet.' })
+        }
+
+        console.log(user)
+
+
+        const code = await sendMail(user?.email, user?.username)
+        if (!code) {
+            return res.status(500).json({ message: 'Error sending verification code' });
+        }
+
+        user.token = code
+
+        const token = user?.generateJWT()
+        res.cookie("authorization", token)
+
+        await user.save({
+            validateModifiedOnly: true
+        })
+
+        res.status(201).json({
+            message: 'Verification code sent',
+
+        })
+
+
+    } catch (error) {
+        console.log('Internal server error : ', error)
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+
+
+export const checkVerificationCode = async (req, res) => {
+    try {
+        console.log('inside the check verification code')
+        const userId = req?.user;
+
+        const user = await User.findById(userId)
+        if (!user) {
+            return res.status(401).json({ message: 'user not registered with this email yet.' });
+        }
+
+        console.log(user)
+
+
+        const { code } = req.body;
+        console.log(code)
+
+        if (!code) {
+            return res.status(402).json({ message: 'Invalid verification code' })
+        }
+
+        // console.log(typeof user?.token)
+
+        const check = user?.token.toString() === code ? true : false
+
+        // console.log(check)
+
+        if (!check) {
+            return res.status(402).json({ message: 'Invalid verification code' });
+        }
+
+        const token = user?.generateJWT()
+
+        res.cookie("authorization", token)
+
+
+        res.status(201).json({
+            message: 'user identification confirmed',
+        })
+
+
+    } catch (error) {
+        console.log('Internal server error in check verification code controller : ', error)
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+
+export const updatePassword = async (req, res) => {
+    try {
+        const userId = req?.user;
+
+        const user = await User.findById(userId)
+        if (!user) {
+            return res.status(401).json({ message: 'user not registered with this email yet' });
+        }
+
+
+        const { password, confirmPassword } = req.body;
+
+        if (password != confirmPassword) {
+            return res.status(402).json({ message: 'Passwords do not match' });
+        }
+
+        const isPasswordSame = await bcrypt.compare(password, user?.password)
+
+        if (isPasswordSame) {
+            return res.status(402).json({ message: 'this is the old password . please provide another and strong one' })
+        }
+
+
+        user.password = password
+        user.token = ""
+
+        user.save({
+            validateModifiedOnly: true
+        })
+
+        res.cookie('authorization', null)
+
+
+        res.status(201).json({
+            message: 'Password reseted successfully.',
+        })
+
+
+    } catch (error) {
+        console.log('Internal server error in updating password controller : ', error)
+        res.status(500).json({ message: 'Internal server error' });
     }
 }

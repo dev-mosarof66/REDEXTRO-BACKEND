@@ -16,7 +16,6 @@ const sendMail = async (email, username) => {
 
     const code = generateEmailToken()
     const mail = await transporter.sendMail({
-        from: process.env.EMAIL_USER,
         to: email,
         subject: 'Verification email from RED - EXTRO',
         html: `
